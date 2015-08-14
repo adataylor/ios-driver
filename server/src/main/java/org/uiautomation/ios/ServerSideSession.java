@@ -275,7 +275,7 @@ public class ServerSideSession extends Session {
 
   public String getTargetBundleId() {
     if (isSafariRealDevice()) {
-      if (getVersionInt() >= 8) {
+      if (getDeviceVersionInt() >= 8) {
         // For versions iOS8+, both Safari and WebContent launch,
         // But the one that is connectable and contains tabs
         // Is WebContent
@@ -288,8 +288,12 @@ public class ServerSideSession extends Session {
     return getCapabilities().getBundleId();
   }
 
-  private int getVersionInt() {
+  private int getDeviceVersionInt() {
     String sdk = getDevice().getCapability().getSDKVersion();
+    return getVersionInt(sdk);
+  }
+
+  public static int getVersionInt(String sdk) {
     try {
       return Integer.valueOf(sdk.substring(0, sdk.indexOf(".")));
     } catch (IndexOutOfBoundsException | NumberFormatException e) {

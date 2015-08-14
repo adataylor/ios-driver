@@ -44,16 +44,8 @@ public class MessageFactory {
 
   private static final List<String> DEFAULT = Arrays.asList("Default");
 
-  private static final List<String> IOS7_TYPES = Arrays.asList(
-    "7.0", "7.0.1", "7.0.2", "7.0.3", "7.0.4", "7.0.5", "7.0.6", 
-    "7.1", "7.1.1", "7.1.2");
-
-  private static final List<String> IOS8_TYPES = Arrays.asList(
-    "8.0", "8.0.1", "8.0.2", 
-    "8.1", "8.1.1", "8.1.2", "8.1.3", 
-    "8.2", "8.3", "8.4", "8.4.1");
-
-  private final Map<List<String>, Map<String, Class<? extends BaseIOSWebKitMessage>>> iOSTypesMap;
+  private Map<String, Class<? extends BaseIOSWebKitMessage>> iOS7_TYPES = new HashMap<>();
+  private Map<String, Class<? extends BaseIOSWebKitMessage>> iOS8_TYPES = new HashMap<>();
 
   private String iOSVersion;
 
@@ -63,7 +55,6 @@ public class MessageFactory {
 
   public MessageFactory(ServerSideSession session) {
     iOSVersion = session.getDevice().getCapability().getSDKVersion();
-    iOSTypesMap = new HashMap<>();
     versionDeterminingLock = new ReentrantLock();
     determiningVersion = versionDeterminingLock.newCondition();
     populateDefaultTypes();
@@ -71,41 +62,39 @@ public class MessageFactory {
     populateIOS8Types();
   }
 
-  private void populateDefaultTypes() {
+  private Map<String, Class<? extends BaseIOSWebKitMessage>> populateDefaultTypes() {
     Map<String, Class<? extends BaseIOSWebKitMessage>> types = new HashMap<>();
     types.put("_rpc_reportSetup:", org.uiautomation.ios.wkrdp.message.ReportSetupMessageImpl.class);
     types.put("_rpc_applicationSentData:", org.uiautomation.ios.wkrdp.message.ApplicationDataMessageImpl.class);
-    iOSTypesMap.put(DEFAULT, types);
+    return types;
   }
 
   private void populateIOS7Types() {
-    Map<String, Class<? extends BaseIOSWebKitMessage>> types = new HashMap<>();
-    types.put("_rpc_reportConnectedApplicationList:",
+    iOS7_TYPES = populateDefaultTypes();
+    iOS7_TYPES.put("_rpc_reportConnectedApplicationList:",
         org.uiautomation.ios.wkrdp.message.ios7.ReportConnectedApplicationsMessageImpl.class);
-    types.put("_rpc_applicationSentListing:",
+    iOS7_TYPES.put("_rpc_applicationSentListing:",
         org.uiautomation.ios.wkrdp.message.ios7.ApplicationSentListingMessageImpl.class);
-    types.put("_rpc_applicationConnected:",
+    iOS7_TYPES.put("_rpc_applicationConnected:",
         org.uiautomation.ios.wkrdp.message.ios7.ApplicationConnectedMessageImpl.class);
-    types.put("_rpc_applicationDisconnected:",
+    iOS7_TYPES.put("_rpc_applicationDisconnected:",
         org.uiautomation.ios.wkrdp.message.ios7.ApplicationDisconnectedMessageImpl.class);
-    types.put("_rpc_applicationUpdated:",
+    iOS7_TYPES.put("_rpc_applicationUpdated:",
         org.uiautomation.ios.wkrdp.message.ios7.ApplicationUpdatedMessageImpl.class);
-    iOSTypesMap.put(IOS7_TYPES, types);
   }
 
   private void populateIOS8Types() {
-    Map<String, Class<? extends BaseIOSWebKitMessage>> types = new HashMap<>();
-    types.put("_rpc_reportConnectedApplicationList:",
+    iOS8_TYPES = populateDefaultTypes();
+    iOS8_TYPES.put("_rpc_reportConnectedApplicationList:",
         org.uiautomation.ios.wkrdp.message.ios8.ReportConnectedApplicationsMessageImpl.class);
-    types.put("_rpc_applicationSentListing:",
+    iOS8_TYPES.put("_rpc_applicationSentListing:",
         org.uiautomation.ios.wkrdp.message.ios8.ApplicationSentListingMessageImpl.class);
-    types.put("_rpc_applicationConnected:",
+    iOS8_TYPES.put("_rpc_applicationConnected:",
         org.uiautomation.ios.wkrdp.message.ios8.ApplicationConnectedMessageImpl.class);
-    types.put("_rpc_applicationDisconnected:",
+    iOS8_TYPES.put("_rpc_applicationDisconnected:",
         org.uiautomation.ios.wkrdp.message.ios8.ApplicationDisconnectedMessageImpl.class);
-    types.put("_rpc_applicationUpdated:",
+    iOS8_TYPES.put("_rpc_applicationUpdated:",
         org.uiautomation.ios.wkrdp.message.ios8.ApplicationUpdatedMessageImpl.class);
-    iOSTypesMap.put(IOS8_TYPES, types);
   }
 
   public IOSMessage create(String rawMessage) {
@@ -148,10 +137,10 @@ public class MessageFactory {
     if (iOSVersion == null) {
       determineIOSVersion(baseIOSWebKitMessage);
     }
-    if (isImplementationClassDistinctFor(baseIOSWebKitMessage)) {
-      return searchSpecificListFor(baseIOSWebKitMessage);
+    if (ServerSideSession.getVersionInt(iOSVersion) < 8) {
+      return iOS7_TYPES.get(baseIOSWebKitMessage.selector);
     } else {
-      return searchDefaultFor(baseIOSWebKitMessage);
+      return iOS8_TYPES.get(baseIOSWebKitMessage.selector);
     }
   }
 
@@ -161,23 +150,6 @@ public class MessageFactory {
       return false;
     }
     return true;
-  }
-
-  private Class<? extends BaseIOSWebKitMessage> searchDefaultFor(BaseIOSWebKitMessage baseIOSWebKitMessage) {
-    return iOSTypesMap.get(DEFAULT).get(baseIOSWebKitMessage.selector);
-  }
-
-  private Class<? extends BaseIOSWebKitMessage> searchSpecificListFor(BaseIOSWebKitMessage baseIOSWebKitMessage) {
-    List<String> iOSTypeList = getIOSTypeList();
-    return iOSTypesMap.get(iOSTypeList).get(baseIOSWebKitMessage.selector);
-  }
-
-  private List<String> getIOSTypeList() {
-    if (IOS8_TYPES.contains(iOSVersion)) {
-      return IOS8_TYPES;
-    } else {
-      return IOS7_TYPES;
-    }
   }
 
   private void determineIOSVersion(BaseIOSWebKitMessage baseIOSWebkitMesssage) {
